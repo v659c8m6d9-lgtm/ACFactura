@@ -1,0 +1,1578 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AC Factura — Prototipo MVP</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --primary:       #4F46E5;
+            --primary-light: #EEF2FF;
+            --primary-dark:  #3730A3;
+            --success:       #10B981;
+            --gray-50:       #F9FAFB;
+            --gray-100:      #F3F4F6;
+            --gray-200:      #E5E7EB;
+            --gray-400:      #9CA3AF;
+            --gray-500:      #6B7280;
+            --gray-600:      #4B5563;
+            --gray-800:      #1F2937;
+            --gray-900:      #111827;
+            --white:         #FFFFFF;
+            --radius:        12px;
+            --radius-sm:     8px;
+            --shadow:        0 1px 3px rgba(0,0,0,0.10), 0 1px 2px rgba(0,0,0,0.06);
+            --shadow-md:     0 4px 6px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--gray-50);
+            color: var(--gray-800);
+            min-height: 100vh;
+            max-width: 430px;
+            margin: 0 auto;
+        }
+
+        /* ── Screen management ── */
+        .screen { display: none; min-height: 100vh; padding-bottom: 76px; }
+        .screen.active { display: block; }
+
+        /* ── Header ── */
+        .header {
+            background: var(--white);
+            padding: 14px 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 1px solid var(--gray-100);
+            position: sticky; top: 0; z-index: 10;
+        }
+        .btn-back {
+            width: 34px; height: 34px;
+            border-radius: 50%; border: none;
+            background: var(--gray-100);
+            cursor: pointer; font-size: 18px;
+            display: flex; align-items: center; justify-content: center;
+            color: var(--gray-600); flex-shrink: 0;
+        }
+        .header-title { font-size: 17px; font-weight: 600; color: var(--gray-900); }
+
+        /* ── Bottom nav ── */
+        .bottom-nav {
+            position: fixed; bottom: 0;
+            left: 50%; transform: translateX(-50%);
+            width: 100%; max-width: 430px;
+            background: var(--white);
+            border-top: 1px solid var(--gray-200);
+            display: flex; z-index: 100;
+            padding: 6px 0 10px;
+        }
+        .nav-item {
+            flex: 1; display: flex; flex-direction: column;
+            align-items: center; gap: 3px;
+            cursor: pointer; padding: 4px;
+            border: none; background: none;
+            color: var(--gray-400); font-size: 10px;
+            transition: color .2s;
+        }
+        .nav-item.active { color: var(--primary); }
+        .nav-icon { font-size: 20px; }
+
+        /* ── Content ── */
+        .content { padding: 16px; }
+
+        /* ── Card ── */
+        .card {
+            background: var(--white);
+            border-radius: var(--radius);
+            padding: 14px 16px;
+            box-shadow: var(--shadow);
+            margin-bottom: 12px;
+        }
+
+        /* ── Buttons ── */
+        .btn {
+            width: 100%; padding: 13px;
+            border-radius: var(--radius); border: none;
+            font-size: 15px; font-weight: 600;
+            cursor: pointer; transition: all .2s;
+            margin-bottom: 8px;
+        }
+        .btn:last-child { margin-bottom: 0; }
+        .btn-primary  { background: var(--primary); color: #fff; }
+        .btn-primary:active { background: var(--primary-dark); }
+        .btn-primary:disabled { opacity: .4; cursor: not-allowed; }
+        .btn-secondary { background: var(--gray-100); color: var(--gray-700); }
+
+        /* ── Form ── */
+        .form-group { margin-bottom: 14px; }
+        .form-group:last-child { margin-bottom: 0; }
+        .form-label { display: block; font-size: 12px; font-weight: 500; color: var(--gray-500); margin-bottom: 5px; }
+        .form-input, .form-select {
+            width: 100%; padding: 11px 13px;
+            border: 1.5px solid var(--gray-200);
+            border-radius: var(--radius-sm);
+            font-size: 15px; color: var(--gray-800);
+            background: var(--white);
+            -webkit-appearance: none; appearance: none;
+            transition: border-color .2s;
+        }
+        .form-input:focus, .form-select:focus { outline: none; border-color: var(--primary); }
+        .form-select {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%236B7280' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 13px center;
+            padding-right: 36px;
+        }
+
+        /* ── Section title ── */
+        .section-title { font-size: 14px; font-weight: 600; color: var(--gray-800); margin-bottom: 12px; }
+
+        /* ── Step indicator ── */
+        .step-bar {
+            display: flex; align-items: center;
+            padding: 12px 20px; background: var(--white);
+            border-bottom: 1px solid var(--gray-100);
+        }
+        .step-dot {
+            width: 26px; height: 26px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 11px; font-weight: 700; flex-shrink: 0; z-index: 1;
+        }
+        .step-dot.done    { background: var(--primary); color: #fff; }
+        .step-dot.current { background: var(--primary); color: #fff; box-shadow: 0 0 0 4px rgba(79,70,229,.18); }
+        .step-dot.pending { background: var(--gray-200); color: var(--gray-400); }
+        .step-line { flex: 1; height: 2px; background: var(--gray-200); }
+        .step-line.done   { background: var(--primary); }
+
+        /* ══════════════ HOME ══════════════ */
+        .hero {
+            background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
+            padding: 24px 16px 28px; color: #fff;
+        }
+        .hero-greeting { font-size: 13px; opacity: .8; margin-bottom: 2px; }
+        .hero-title    { font-size: 21px; font-weight: 700; margin-bottom: 18px; }
+        .hero-stats { display: flex; gap: 10px; }
+        .stat-box {
+            background: rgba(255,255,255,.15);
+            border-radius: var(--radius-sm);
+            padding: 10px 14px; flex: 1;
+        }
+        .stat-num   { font-size: 22px; font-weight: 700; }
+        .stat-label { font-size: 11px; opacity: .75; margin-top: 1px; }
+
+        .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+        .action-tile {
+            background: var(--white);
+            border-radius: var(--radius); padding: 18px 14px;
+            box-shadow: var(--shadow); cursor: pointer;
+            border: none; text-align: left; transition: transform .15s;
+        }
+        .action-tile:active { transform: scale(.97); }
+        .tile-icon  { font-size: 26px; display: block; margin-bottom: 8px; }
+        .tile-title { font-size: 13px; font-weight: 600; color: var(--gray-900); display: block; }
+        .tile-sub   { font-size: 11px; color: var(--gray-400); margin-top: 2px; display: block; }
+        .action-tile.primary-tile { background: var(--primary); }
+        .action-tile.primary-tile .tile-title,
+        .action-tile.primary-tile .tile-sub { color: rgba(255,255,255,.9); }
+        .action-tile.primary-tile .tile-sub { color: rgba(255,255,255,.65); }
+
+        .wide-tile {
+            width: 100%; display: flex; align-items: center; gap: 12px;
+            padding: 14px 16px; background: var(--white);
+            border-radius: var(--radius); border: none; cursor: pointer;
+            box-shadow: var(--shadow); margin-bottom: 10px;
+        }
+        .wide-tile-text { text-align: left; flex: 1; }
+        .wide-tile-title { font-size: 13px; font-weight: 600; color: var(--gray-900); }
+        .wide-tile-sub   { font-size: 11px; color: var(--gray-400); margin-top: 2px; }
+
+        /* Invoice list item */
+        .inv-item {
+            display: flex; align-items: center; gap: 12px;
+            padding: 12px 0; border-bottom: 1px solid var(--gray-100);
+            cursor: pointer;
+        }
+        .inv-item:last-child { border-bottom: none; }
+        .inv-logo {
+            width: 40px; height: 40px; border-radius: var(--radius-sm);
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 700; font-size: 13px; color: #fff; flex-shrink: 0;
+        }
+        .inv-store { font-size: 13px; font-weight: 600; color: var(--gray-900); }
+        .inv-date  { font-size: 11px; color: var(--gray-400); margin-top: 1px; }
+        .inv-right { text-align: right; flex-shrink: 0; }
+        .inv-amount { font-size: 14px; font-weight: 600; color: var(--gray-900); }
+        .badge {
+            display: inline-block; font-size: 10px;
+            padding: 2px 7px; border-radius: 20px; margin-top: 3px;
+        }
+        .badge-ok { background: #D1FAE5; color: #065F46; }
+
+        .profile-notice {
+            background: var(--primary); color: #fff;
+            padding: 12px 14px; border-radius: var(--radius);
+            display: flex; align-items: center; gap: 10px;
+            margin-bottom: 12px; cursor: pointer;
+        }
+        .pn-text { flex: 1; }
+        .pn-title { font-size: 13px; font-weight: 600; }
+        .pn-sub   { font-size: 11px; opacity: .75; margin-top: 2px; }
+
+        /* ══════════════ PROFILE ══════════════ */
+        .profile-hero {
+            background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
+            padding: 24px 16px 28px; color: #fff;
+        }
+        .profile-avatar {
+            width: 52px; height: 52px; background: rgba(255,255,255,.2);
+            border-radius: 50%; display: flex; align-items: center;
+            justify-content: center; font-size: 22px; margin-bottom: 10px;
+        }
+        .profile-name { font-size: 17px; font-weight: 700; }
+        .profile-rfc  { font-size: 12px; opacity: .75; margin-top: 2px; }
+        .profile-ok {
+            display: inline-flex; align-items: center; gap: 5px;
+            background: rgba(255,255,255,.15); border-radius: 20px;
+            padding: 4px 10px; font-size: 12px; margin-top: 10px;
+        }
+
+        /* ══════════════ ESTABLISHMENT GRID ══════════════ */
+        .est-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; }
+        .est-card {
+            background: var(--white); border-radius: var(--radius);
+            padding: 14px 6px; box-shadow: var(--shadow);
+            cursor: pointer; border: 2px solid transparent;
+            text-align: center; transition: all .2s;
+        }
+        .est-card.selected { border-color: var(--primary); background: var(--primary-light); }
+        .est-logo {
+            width: 42px; height: 42px; border-radius: var(--radius-sm);
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 700; font-size: 12px; color: #fff;
+            margin: 0 auto 7px;
+        }
+        .est-name { font-size: 10px; color: var(--gray-600); font-weight: 500; line-height: 1.3; }
+
+        /* ══════════════ UPLOAD AREA ══════════════ */
+        .upload-area {
+            border: 2px dashed var(--gray-200);
+            border-radius: var(--radius); padding: 32px 16px;
+            text-align: center; cursor: pointer; transition: all .2s;
+            margin-bottom: 12px;
+        }
+        .upload-area:hover { border-color: var(--primary); background: var(--primary-light); }
+        .upload-icon { font-size: 36px; margin-bottom: 8px; }
+        .upload-text { font-size: 14px; color: var(--gray-600); font-weight: 500; }
+        .upload-sub  { font-size: 12px; color: var(--gray-400); margin-top: 3px; }
+
+        .ocr-notice {
+            background: #ECFDF5; border: 1px solid #A7F3D0;
+            border-radius: var(--radius-sm); padding: 10px 12px;
+            font-size: 12px; color: #065F46; margin-bottom: 12px;
+            display: flex; gap: 7px; align-items: center;
+        }
+        .ocr-warning {
+            background: #FFFBEB; border: 1px solid #FDE68A;
+            border-radius: var(--radius-sm); padding: 10px 12px;
+            font-size: 12px; color: #92400E; margin-bottom: 12px;
+            display: flex; gap: 7px; align-items: flex-start;
+        }
+        /* OCR processing overlay */
+        .ocr-processing {
+            border: 2px dashed var(--primary);
+            border-radius: var(--radius); padding: 24px 16px;
+            text-align: center; background: var(--primary-light);
+            margin-bottom: 12px;
+        }
+        .ocr-progress-bar {
+            width: 100%; height: 4px; background: var(--gray-200);
+            border-radius: 2px; margin: 10px 0 6px; overflow: hidden;
+        }
+        .ocr-progress-fill {
+            height: 100%; background: var(--primary);
+            border-radius: 2px; transition: width .3s ease;
+        }
+        .ocr-preview-img {
+            width: 100%; max-height: 140px; object-fit: cover;
+            border-radius: var(--radius-sm); margin-bottom: 8px;
+        }
+        .ocr-raw {
+            background: var(--gray-50); border: 1px solid var(--gray-200);
+            border-radius: var(--radius-sm); padding: 8px 10px;
+            font-size: 10px; color: var(--gray-500); font-family: monospace;
+            max-height: 80px; overflow-y: auto; margin-top: 8px;
+            white-space: pre-wrap; word-break: break-all;
+            display: none;
+        }
+        .ocr-raw.visible { display: block; }
+        .detected-field {
+            background: #FEF3C7; border-radius: 3px;
+            padding: 0 3px; font-weight: 600; color: #92400E;
+        }
+
+        /* ══════════════ REVIEW / DATA ROWS ══════════════ */
+        .data-section-label {
+            font-size: 11px; font-weight: 600; text-transform: uppercase;
+            letter-spacing: .05em; color: var(--gray-400); margin-bottom: 8px;
+        }
+        .data-row {
+            display: flex; justify-content: space-between;
+            align-items: flex-start; padding: 9px 0;
+            border-bottom: 1px solid var(--gray-100); gap: 12px;
+        }
+        .data-row:last-child { border-bottom: none; }
+        .data-label { font-size: 12px; color: var(--gray-500); flex-shrink: 0; }
+        .data-value { font-size: 12px; font-weight: 500; color: var(--gray-900); text-align: right; }
+        .data-value.big { font-size: 16px; font-weight: 700; color: var(--primary); }
+
+        /* ══════════════ PROCESSING ══════════════ */
+        .proc-wrap {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            min-height: 80vh; padding: 32px 20px; text-align: center;
+        }
+        .spinner {
+            width: 64px; height: 64px;
+            border: 4px solid var(--gray-200);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .proc-title { font-size: 17px; font-weight: 700; color: var(--gray-900); }
+        .proc-sub   { font-size: 13px; color: var(--gray-400); margin-top: 4px; }
+
+        .proc-steps { text-align: left; width: 100%; max-width: 260px; margin-top: 24px; }
+        .proc-step {
+            display: flex; align-items: center; gap: 10px;
+            padding: 8px 0; font-size: 13px; color: var(--gray-400);
+        }
+        .proc-step.step-done   { color: var(--success); }
+        .proc-step.step-active { color: var(--gray-900); font-weight: 500; }
+        .pstep-dot {
+            width: 18px; height: 18px; border-radius: 50%;
+            background: var(--gray-200); flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 10px;
+        }
+        .proc-step.step-done   .pstep-dot { background: var(--success); color: #fff; }
+        .proc-step.step-active .pstep-dot { background: var(--primary); animation: pulse .9s infinite; }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+        /* ══════════════ RESULT ══════════════ */
+        .result-hero {
+            background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+            padding: 36px 16px 28px; text-align: center; color: #fff;
+        }
+        .result-check {
+            width: 64px; height: 64px; background: rgba(255,255,255,.2);
+            border-radius: 50%; display: flex; align-items: center;
+            justify-content: center; font-size: 32px; margin: 0 auto 14px;
+        }
+        .result-title { font-size: 21px; font-weight: 700; margin-bottom: 4px; }
+        .result-folio { font-size: 13px; opacity: .8; }
+
+        .dl-btn {
+            display: flex; align-items: center; gap: 12px;
+            padding: 14px; background: var(--white);
+            border-radius: var(--radius); border: none; width: 100%;
+            cursor: pointer; box-shadow: var(--shadow); margin-bottom: 8px;
+        }
+        .dl-icon {
+            width: 40px; height: 40px; border-radius: var(--radius-sm);
+            display: flex; align-items: center; justify-content: center; font-size: 20px;
+        }
+        .dl-icon.pdf { background: #FEE2E2; }
+        .dl-icon.xml { background: #DBEAFE; }
+        .dl-info  { text-align: left; flex: 1; }
+        .dl-title { font-size: 13px; font-weight: 600; color: var(--gray-900); }
+        .dl-sub   { font-size: 11px; color: var(--gray-400); margin-top: 1px; }
+
+        /* ══════════════ HISTORIAL ══════════════ */
+        .filter-row {
+            display: flex; gap: 7px; overflow-x: auto;
+            padding-bottom: 4px; margin-bottom: 14px;
+            scrollbar-width: none;
+        }
+        .filter-row::-webkit-scrollbar { display: none; }
+        .filter-chip {
+            padding: 5px 12px; border-radius: 20px; border: none;
+            font-size: 12px; cursor: pointer; white-space: nowrap;
+            background: var(--gray-100); color: var(--gray-600);
+        }
+        .filter-chip.active { background: var(--primary); color: #fff; }
+
+        /* ══════════════ EMPTY STATE ══════════════ */
+        .empty {
+            text-align: center; padding: 60px 20px;
+        }
+        .empty-icon  { font-size: 44px; margin-bottom: 10px; }
+        .empty-title { font-size: 16px; font-weight: 600; color: var(--gray-800); margin-bottom: 5px; }
+        .empty-sub   { font-size: 13px; color: var(--gray-400); }
+
+        /* ══════════════ CHIP ══════════════ */
+        .chip {
+            display: inline-flex; align-items: center;
+            padding: 3px 9px; border-radius: 20px;
+            font-size: 11px; font-weight: 500;
+        }
+        .chip-primary { background: var(--primary-light); color: var(--primary); }
+
+        /* ══════════════ TOAST ══════════════ */
+        #toast {
+            position: fixed; bottom: 88px;
+            left: 50%; transform: translateX(-50%);
+            background: var(--gray-900); color: #fff;
+            padding: 10px 18px; border-radius: 30px;
+            font-size: 13px; display: none; z-index: 999;
+            white-space: nowrap; box-shadow: var(--shadow-md);
+            pointer-events: none;
+        }
+
+        /* ══════════════ DETALLE ══════════════ */
+        .det-hero {
+            background: var(--white); padding: 24px 16px;
+            text-align: center; border-bottom: 1px solid var(--gray-100);
+        }
+        .det-logo-big {
+            width: 56px; height: 56px; border-radius: var(--radius);
+            margin: 0 auto 10px; display: flex;
+            align-items: center; justify-content: center;
+            font-size: 18px; font-weight: 700; color: #fff;
+        }
+        .det-store  { font-size: 17px; font-weight: 700; color: var(--gray-900); }
+        .det-fecha  { font-size: 12px; color: var(--gray-400); margin-top: 3px; }
+        .det-amount { font-size: 26px; font-weight: 800; color: var(--primary); margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════ -->
+<!--  SCREEN: HOME                               -->
+<!-- ═══════════════════════════════════════════ -->
+<div id="s-home" class="screen active">
+    <div class="hero">
+        <div class="hero-greeting">Bienvenida 👋</div>
+        <div class="hero-title" id="home-title">AC Factura</div>
+        <div class="hero-stats">
+            <div class="stat-box">
+                <div class="stat-num" id="home-mes">0</div>
+                <div class="stat-label">Este mes</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-num" id="home-total">0</div>
+                <div class="stat-label">Total</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="content">
+        <div id="home-notice" class="profile-notice" onclick="go('profile')" style="display:none">
+            <span style="font-size:22px">📋</span>
+            <div class="pn-text">
+                <div class="pn-title">Completa tu perfil fiscal</div>
+                <div class="pn-sub">Necesario para generar facturas</div>
+            </div>
+            <span>›</span>
+        </div>
+
+        <div class="action-grid">
+            <button class="action-tile primary-tile" onclick="go('est')">
+                <span class="tile-icon">➕</span>
+                <span class="tile-title">Nueva Factura</span>
+                <span class="tile-sub">Facturar ticket</span>
+            </button>
+            <button class="action-tile" onclick="go('historial')">
+                <span class="tile-icon">🗂️</span>
+                <span class="tile-title">Mis Facturas</span>
+                <span class="tile-sub" id="home-hist-sub">Sin facturas</span>
+            </button>
+        </div>
+
+        <button class="wide-tile" onclick="go('profile')">
+            <span style="font-size:22px">👤</span>
+            <div class="wide-tile-text">
+                <div class="wide-tile-title">Mi Perfil Fiscal</div>
+                <div class="wide-tile-sub" id="home-profile-sub">No configurado</div>
+            </div>
+            <span style="color:var(--gray-400)">›</span>
+        </button>
+
+        <div id="home-recent" style="display:none">
+            <div class="section-title">Recientes</div>
+            <div class="card" style="padding:4px 14px" id="home-recent-list"></div>
+        </div>
+    </div>
+
+    <nav class="bottom-nav">
+        <button class="nav-item active" onclick="go('home')"><span class="nav-icon">🏠</span>Inicio</button>
+        <button class="nav-item" onclick="go('est')"><span class="nav-icon">➕</span>Facturar</button>
+        <button class="nav-item" onclick="go('historial')"><span class="nav-icon">🗂️</span>Facturas</button>
+        <button class="nav-item" onclick="go('profile')"><span class="nav-icon">👤</span>Perfil</button>
+    </nav>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!--  SCREEN: PERFIL FISCAL                      -->
+<!-- ═══════════════════════════════════════════ -->
+<div id="s-profile" class="screen">
+    <div class="profile-hero">
+        <div class="profile-avatar">👤</div>
+        <div class="profile-name" id="prf-name">Mi Perfil Fiscal</div>
+        <div class="profile-rfc"  id="prf-rfc">Completa tu información</div>
+        <div class="profile-ok" id="prf-ok" style="display:none">✅ Perfil completo</div>
+    </div>
+
+    <div class="content">
+        <div class="card">
+            <div class="section-title" style="margin-bottom:14px">Datos Fiscales</div>
+            <div class="form-group">
+                <label class="form-label">RFC *</label>
+                <input id="p-rfc" type="text" class="form-input" placeholder="XAXX010101000" maxlength="13" style="text-transform:uppercase">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Razón Social / Nombre *</label>
+                <input id="p-razon" type="text" class="form-input" placeholder="Como aparece en tu constancia fiscal" style="text-transform:uppercase">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Código Postal *</label>
+                <input id="p-cp" type="text" class="form-input" placeholder="00000" maxlength="5" inputmode="numeric">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Régimen Fiscal *</label>
+                <select id="p-regimen" class="form-select">
+                    <option value="">Selecciona tu régimen</option>
+                    <option value="601">601 – General de Ley Personas Morales</option>
+                    <option value="603">603 – Personas Morales con Fines no Lucrativos</option>
+                    <option value="605">605 – Sueldos y Salarios e Ingresos Asimilados</option>
+                    <option value="606">606 – Arrendamiento</option>
+                    <option value="607">607 – Enajenación o Adquisición de Bienes</option>
+                    <option value="608">608 – Demás ingresos</option>
+                    <option value="612">612 – Personas Físicas con Actividades Empresariales</option>
+                    <option value="616">616 – Sin obligaciones fiscales</option>
+                    <option value="621">621 – Incorporación Fiscal</option>
+                    <option value="625">625 – Ingresos a través de Plataformas Tecnológicas</option>
+                    <option value="626">626 – Simplificado de Confianza (RESICO)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Uso de CFDI *</label>
+                <select id="p-cfdi" class="form-select">
+                    <option value="">Selecciona el uso</option>
+                    <option value="G01">G01 – Adquisición de mercancias</option>
+                    <option value="G02">G02 – Devoluciones, descuentos o bonificaciones</option>
+                    <option value="G03">G03 – Gastos en general</option>
+                    <option value="I01">I01 – Construcciones</option>
+                    <option value="I04">I04 – Equipo de cómputo y accesorios</option>
+                    <option value="D01">D01 – Honorarios médicos y gastos hospitalarios</option>
+                    <option value="D07">D07 – Primas por seguros de gastos médicos</option>
+                    <option value="S01">S01 – Sin efectos fiscales</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Correo Electrónico *</label>
+                <input id="p-email" type="email" class="form-input" placeholder="tucorreo@ejemplo.com">
+            </div>
+        </div>
+
+        <!-- Extra: Membresía Costco (visible siempre en perfil para tenerla guardada) -->
+        <div class="card">
+            <div class="section-title" style="margin-bottom:14px; font-size:13px">Datos adicionales opcionales</div>
+            <div class="form-group">
+                <label class="form-label">N° de Membresía Costco</label>
+                <input id="p-costco" type="text" class="form-input" placeholder="0000 0000 0000 0000">
+            </div>
+        </div>
+
+        <button class="btn btn-primary" onclick="saveProfile()">Guardar Perfil</button>
+        <div style="height:16px"></div>
+    </div>
+
+    <nav class="bottom-nav">
+        <button class="nav-item" onclick="go('home')"><span class="nav-icon">🏠</span>Inicio</button>
+        <button class="nav-item" onclick="go('est')"><span class="nav-icon">➕</span>Facturar</button>
+        <button class="nav-item" onclick="go('historial')"><span class="nav-icon">🗂️</span>Facturas</button>
+        <button class="nav-item active" onclick="go('profile')"><span class="nav-icon">👤</span>Perfil</button>
+    </nav>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!--  SCREEN: PASO 1 – ESTABLECIMIENTO           -->
+<!-- ═══════════════════════════════════════════ -->
+<div id="s-est" class="screen">
+    <div class="header">
+        <button class="btn-back" onclick="go('home')">←</button>
+        <div class="header-title">Nueva Factura</div>
+    </div>
+    <div class="step-bar">
+        <div class="step-dot current">1</div>
+        <div class="step-line"></div>
+        <div class="step-dot pending">2</div>
+        <div class="step-line"></div>
+        <div class="step-dot pending">3</div>
+        <div class="step-line"></div>
+        <div class="step-dot pending">4</div>
+    </div>
+
+    <div class="content">
+        <div style="margin-bottom:14px">
+            <div class="section-title">¿Dónde compraste?</div>
+            <div style="font-size:12px; color:var(--gray-400)">Selecciona el establecimiento de tu ticket</div>
+        </div>
+        <div class="est-grid" id="est-grid"></div>
+        <div style="height:14px"></div>
+        <button class="btn btn-primary" id="btn-est-next" onclick="estNext()" disabled>Continuar</button>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!--  SCREEN: PASO 2 – TICKET                    -->
+<!-- ═══════════════════════════════════════════ -->
+<div id="s-ticket" class="screen">
+    <div class="header">
+        <button class="btn-back" onclick="go('est')">←</button>
+        <div class="header-title">Datos del Ticket</div>
+    </div>
+    <div class="step-bar">
+        <div class="step-dot done">✓</div>
+        <div class="step-line done"></div>
+        <div class="step-dot current">2</div>
+        <div class="step-line"></div>
+        <div class="step-dot pending">3</div>
+        <div class="step-line"></div>
+        <div class="step-dot pending">4</div>
+    </div>
+
+    <div class="content">
+        <!-- Input oculto para foto/archivo -->
+        <input type="file" id="ocr-file-input" accept="image/*" capture="environment"
+               style="display:none" onchange="handleImageUpload(event)">
+
+        <!-- Área de carga principal -->
+        <div id="upload-area" class="upload-area" onclick="document.getElementById('ocr-file-input').click()">
+            <div class="upload-icon">📷</div>
+            <div class="upload-text">Tomar foto o subir imagen del ticket</div>
+            <div class="upload-sub">JPG, PNG · se leerá automáticamente</div>
+        </div>
+
+        <!-- Estado: procesando OCR -->
+        <div id="ocr-processing-box" class="ocr-processing" style="display:none">
+            <img id="ocr-preview-img" class="ocr-preview-img" src="" alt="ticket">
+            <div style="font-size:13px; font-weight:600; color:var(--primary)" id="ocr-status-text">Leyendo ticket…</div>
+            <div class="ocr-progress-bar"><div class="ocr-progress-fill" id="ocr-bar" style="width:0%"></div></div>
+            <div style="font-size:11px; color:var(--gray-400)" id="ocr-pct">0%</div>
+            <div class="ocr-raw" id="ocr-raw-text"></div>
+        </div>
+
+        <!-- Resultado OCR exitoso -->
+        <div id="ocr-notice" class="ocr-notice" style="display:none">
+            <span>🤖</span>
+            <span id="ocr-notice-text">Datos detectados automáticamente — verifica que sean correctos.</span>
+        </div>
+
+        <!-- Resultado OCR con advertencias -->
+        <div id="ocr-warning" class="ocr-warning" style="display:none">
+            <span>⚠️</span>
+            <span id="ocr-warning-text">No se detectaron todos los datos. Completa los campos faltantes.</span>
+        </div>
+
+        <!-- Botón de fallback: usar ejemplo -->
+        <div style="text-align:center; margin-bottom:10px">
+            <button onclick="simOCR()" style="background:none;border:none;font-size:12px;color:var(--gray-400);cursor:pointer;text-decoration:underline">
+                Usar ticket de ejemplo en su lugar
+            </button>
+        </div>
+
+        <div class="card">
+            <div class="section-title" style="margin-bottom:14px">
+                Datos del ticket
+                <span class="chip chip-primary" id="ticket-store-chip" style="margin-left:6px"></span>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Número de Ticket / Folio *</label>
+                <input id="t-num" type="text" class="form-input" placeholder="Ej. 00842-1234">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Fecha de Compra *</label>
+                <input id="t-fecha" type="date" class="form-input">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Total *</label>
+                <input id="t-total" type="text" class="form-input" placeholder="0.00" inputmode="decimal">
+            </div>
+
+            <!-- Campo extra: Costco membresía -->
+            <div id="field-membresia" style="display:none" class="form-group">
+                <label class="form-label">N° de Membresía Costco *</label>
+                <input id="t-membresia" type="text" class="form-input" placeholder="0000 0000 0000 0000">
+            </div>
+
+            <!-- Campo extra: Orsan / Red Vía Corta -->
+            <div id="field-referencia" style="display:none" class="form-group">
+                <label class="form-label">N° de Operación / Guía *</label>
+                <input id="t-referencia" type="text" class="form-input" placeholder="Ej. 987654321">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Método de Pago</label>
+                <select id="t-metodo" class="form-select">
+                    <option value="PUE">PUE – Pago en una sola exhibición</option>
+                    <option value="PPD">PPD – Pago en parcialidades o diferido</option>
+                </select>
+            </div>
+        </div>
+
+        <button class="btn btn-primary" onclick="ticketNext()">Revisar Información</button>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!--  SCREEN: PASO 3 – REVISIÓN                  -->
+<!-- ═══════════════════════════════════════════ -->
+<div id="s-revision" class="screen">
+    <div class="header">
+        <button class="btn-back" onclick="go('ticket')">←</button>
+        <div class="header-title">Revisar y Confirmar</div>
+    </div>
+    <div class="step-bar">
+        <div class="step-dot done">✓</div>
+        <div class="step-line done"></div>
+        <div class="step-dot done">✓</div>
+        <div class="step-line done"></div>
+        <div class="step-dot current">3</div>
+        <div class="step-line"></div>
+        <div class="step-dot pending">4</div>
+    </div>
+
+    <div class="content">
+        <div class="card">
+            <div class="data-section-label">🏪 Datos del Ticket</div>
+            <div class="data-row">
+                <span class="data-label">Establecimiento</span>
+                <span class="data-value" id="r-store"></span>
+            </div>
+            <div class="data-row">
+                <span class="data-label">Ticket</span>
+                <span class="data-value" id="r-num"></span>
+            </div>
+            <div class="data-row">
+                <span class="data-label">Fecha</span>
+                <span class="data-value" id="r-fecha"></span>
+            </div>
+            <div class="data-row">
+                <span class="data-label">Total</span>
+                <span class="data-value big" id="r-total"></span>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="data-section-label">👤 Datos Fiscales</div>
+            <div class="data-row">
+                <span class="data-label">RFC</span>
+                <span class="data-value" id="r-rfc"></span>
+            </div>
+            <div class="data-row">
+                <span class="data-label">Razón Social</span>
+                <span class="data-value" id="r-razon"></span>
+            </div>
+            <div class="data-row">
+                <span class="data-label">Código Postal</span>
+                <span class="data-value" id="r-cp"></span>
+            </div>
+            <div class="data-row">
+                <span class="data-label">Régimen</span>
+                <span class="data-value" id="r-regimen"></span>
+            </div>
+            <div class="data-row">
+                <span class="data-label">Uso CFDI</span>
+                <span class="data-value" id="r-cfdi"></span>
+            </div>
+            <div class="data-row">
+                <span class="data-label">Correo</span>
+                <span class="data-value" id="r-email"></span>
+            </div>
+        </div>
+
+        <button class="btn btn-primary" onclick="startProcessing()">✓ Generar Factura</button>
+        <button class="btn btn-secondary" onclick="go('ticket')">Editar datos del ticket</button>
+        <div style="height:16px"></div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!--  SCREEN: PROCESANDO                         -->
+<!-- ═══════════════════════════════════════════ -->
+<div id="s-procesando" class="screen">
+    <div class="proc-wrap">
+        <div class="spinner"></div>
+        <div class="proc-title">Generando tu factura</div>
+        <div class="proc-sub" id="proc-store"></div>
+
+        <div class="proc-steps">
+            <div class="proc-step" id="ps1"><div class="pstep-dot"></div>Conectando con el portal</div>
+            <div class="proc-step" id="ps2"><div class="pstep-dot"></div>Validando datos del ticket</div>
+            <div class="proc-step" id="ps3"><div class="pstep-dot"></div>Capturando información fiscal</div>
+            <div class="proc-step" id="ps4"><div class="pstep-dot"></div>Generando CFDI</div>
+            <div class="proc-step" id="ps5"><div class="pstep-dot"></div>Timbrado ante el SAT</div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!--  SCREEN: RESULTADO                          -->
+<!-- ═══════════════════════════════════════════ -->
+<div id="s-resultado" class="screen">
+    <div class="result-hero">
+        <div class="result-check">✅</div>
+        <div class="result-title">¡Factura Generada!</div>
+        <div class="result-folio" id="res-folio"></div>
+    </div>
+
+    <div class="content" style="padding-top:20px">
+        <div class="card">
+            <div class="data-section-label">📋 Resumen</div>
+            <div class="data-row">
+                <span class="data-label">Establecimiento</span>
+                <span class="data-value" id="res-store"></span>
+            </div>
+            <div class="data-row">
+                <span class="data-label">Ticket</span>
+                <span class="data-value" id="res-num"></span>
+            </div>
+            <div class="data-row">
+                <span class="data-label">Fecha</span>
+                <span class="data-value" id="res-fecha"></span>
+            </div>
+            <div class="data-row">
+                <span class="data-label">Total</span>
+                <span class="data-value big" id="res-total"></span>
+            </div>
+            <div class="data-row">
+                <span class="data-label">Enviada a</span>
+                <span class="data-value" id="res-email"></span>
+            </div>
+        </div>
+
+        <div class="section-title">Descargar</div>
+        <button class="dl-btn" onclick="toast('📥 Descargando PDF… (simulado en prototipo)')">
+            <div class="dl-icon pdf">📄</div>
+            <div class="dl-info"><div class="dl-title">Descargar PDF</div><div class="dl-sub">Representación impresa del CFDI</div></div>
+            <span style="color:var(--gray-400)">↓</span>
+        </button>
+        <button class="dl-btn" onclick="toast('📥 Descargando XML… (simulado en prototipo)')">
+            <div class="dl-icon xml">📋</div>
+            <div class="dl-info"><div class="dl-title">Descargar XML</div><div class="dl-sub">Archivo electrónico del CFDI</div></div>
+            <span style="color:var(--gray-400)">↓</span>
+        </button>
+
+        <div style="height:10px"></div>
+        <button class="btn btn-primary" onclick="go('home')">Ir al Inicio</button>
+        <button class="btn btn-secondary" onclick="go('historial')">Ver Mis Facturas</button>
+        <div style="height:16px"></div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!--  SCREEN: HISTORIAL                          -->
+<!-- ═══════════════════════════════════════════ -->
+<div id="s-historial" class="screen">
+    <div class="header">
+        <button class="btn-back" onclick="go('home')">←</button>
+        <div class="header-title">Mis Facturas</div>
+    </div>
+
+    <div class="content">
+        <div class="filter-row" id="filter-row"></div>
+        <div id="hist-list"></div>
+    </div>
+
+    <nav class="bottom-nav">
+        <button class="nav-item" onclick="go('home')"><span class="nav-icon">🏠</span>Inicio</button>
+        <button class="nav-item" onclick="go('est')"><span class="nav-icon">➕</span>Facturar</button>
+        <button class="nav-item active" onclick="go('historial')"><span class="nav-icon">🗂️</span>Facturas</button>
+        <button class="nav-item" onclick="go('profile')"><span class="nav-icon">👤</span>Perfil</button>
+    </nav>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!--  SCREEN: DETALLE                            -->
+<!-- ═══════════════════════════════════════════ -->
+<div id="s-detalle" class="screen">
+    <div class="header">
+        <button class="btn-back" onclick="go('historial')">←</button>
+        <div class="header-title">Detalle de Factura</div>
+    </div>
+
+    <div class="det-hero">
+        <div class="det-logo-big" id="det-logo"></div>
+        <div class="det-store"  id="det-store"></div>
+        <div class="det-fecha"  id="det-fecha"></div>
+        <div class="det-amount" id="det-amount"></div>
+        <div style="margin-top:8px">
+            <span class="badge badge-ok">✓ Facturada</span>
+        </div>
+    </div>
+
+    <div class="content" style="padding-top:16px">
+        <div class="card">
+            <div class="data-section-label">📋 Datos de la Factura</div>
+            <div class="data-row">
+                <span class="data-label">Folio</span>
+                <span class="data-value" id="det-folio" style="font-family:monospace;font-size:11px"></span>
+            </div>
+            <div class="data-row">
+                <span class="data-label">Ticket</span>
+                <span class="data-value" id="det-ticket"></span>
+            </div>
+            <div class="data-row">
+                <span class="data-label">RFC</span>
+                <span class="data-value" id="det-rfc"></span>
+            </div>
+            <div class="data-row">
+                <span class="data-label">Razón Social</span>
+                <span class="data-value" id="det-razon"></span>
+            </div>
+            <div class="data-row">
+                <span class="data-label">Uso CFDI</span>
+                <span class="data-value" id="det-cfdi"></span>
+            </div>
+        </div>
+
+        <button class="dl-btn" onclick="toast('📥 Descargando PDF… (simulado)')">
+            <div class="dl-icon pdf">📄</div>
+            <div class="dl-info"><div class="dl-title">PDF</div><div class="dl-sub">Representación impresa</div></div>
+            <span style="color:var(--gray-400)">↓</span>
+        </button>
+        <button class="dl-btn" onclick="toast('📥 Descargando XML… (simulado)')">
+            <div class="dl-icon xml">📋</div>
+            <div class="dl-info"><div class="dl-title">XML</div><div class="dl-sub">Archivo CFDI electrónico</div></div>
+            <span style="color:var(--gray-400)">↓</span>
+        </button>
+        <div style="height:16px"></div>
+    </div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!--  JAVASCRIPT                                 -->
+<!-- ═══════════════════════════════════════════ -->
+<script>
+'use strict';
+
+// ── Catálogo de establecimientos ──────────────────────────────────────────
+const ESTABLECIMIENTOS = [
+    { id:'walmart',      name:'Walmart',        short:'WM', color:'#0071CE', extras:[] },
+    { id:'home-depot',   name:'Home Depot',     short:'HD', color:'#F96302', extras:[] },
+    { id:'office-depot', name:'Office Depot',   short:'OD', color:'#CC0000', extras:[] },
+    { id:'liverpool',    name:'Liverpool',      short:'LV', color:'#B8000E', extras:[] },
+    { id:'costco',       name:'Costco',         short:'CO', color:'#005DAA', extras:['membresia'] },
+    { id:'autozone',     name:'AutoZone',       short:'AZ', color:'#FF6600', extras:[] },
+    { id:'arco',         name:'ARCO',           short:'AR', color:'#009639', extras:[] },
+    { id:'orsan',        name:'Orsan',          short:'OR', color:'#6B21A8', extras:['referencia'] },
+    { id:'via-corta',    name:'Red Vía Corta',  short:'VC', color:'#0369A1', extras:['referencia'] },
+];
+
+// Tickets de ejemplo para simulación OCR
+const TICKETS_EJEMPLO = {
+    'walmart':      { num:'00842-19234', total:'847.50' },
+    'home-depot':   { num:'0341-00184',  total:'2,350.00' },
+    'office-depot': { num:'OD-2026-0341',total:'1,249.00' },
+    'liverpool':    { num:'LV-082618-4', total:'3,899.00' },
+    'costco':       { num:'411-28947',   total:'5,430.80' },
+    'autozone':     { num:'AZ-00923-1',  total:'680.00' },
+    'arco':         { num:'4921038',     total:'1,100.00' },
+    'orsan':        { num:'ORS-2026-881',total:'320.00' },
+    'via-corta':    { num:'VCT-884321',  total:'180.00' },
+};
+
+// ── Estado de sesión ──────────────────────────────────────────────────────
+let selectedEst = null;
+let ocrUsado    = false;
+
+// ── Navegación ────────────────────────────────────────────────────────────
+function go(screen) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    const el = document.getElementById('s-' + screen);
+    if (el) { el.classList.add('active'); window.scrollTo(0,0); }
+
+    if (screen === 'home')     refreshHome();
+    if (screen === 'profile')  loadProfileForm();
+    if (screen === 'est')      initEstScreen();
+    if (screen === 'historial') renderHistorial();
+}
+
+// ── Perfil fiscal ─────────────────────────────────────────────────────────
+function getProfile() {
+    try { return JSON.parse(localStorage.getItem('fp_profile') || 'null'); } catch { return null; }
+}
+
+function profileOk(p) {
+    return p && p.rfc && p.razon && p.cp && p.regimen && p.cfdi && p.email;
+}
+
+function loadProfileForm() {
+    const p = getProfile();
+    if (!p) return;
+    ['rfc','razon','cp','regimen','cfdi','email','costco'].forEach(k => {
+        const el = document.getElementById('p-'+k);
+        if (el) el.value = p[k] || '';
+    });
+    document.getElementById('prf-name').textContent = p.razon || 'Mi Perfil Fiscal';
+    document.getElementById('prf-rfc').textContent  = p.rfc   || 'Sin RFC';
+    document.getElementById('prf-ok').style.display = profileOk(p) ? 'inline-flex' : 'none';
+}
+
+function saveProfile() {
+    const p = {
+        rfc:    document.getElementById('p-rfc').value.trim().toUpperCase(),
+        razon:  document.getElementById('p-razon').value.trim().toUpperCase(),
+        cp:     document.getElementById('p-cp').value.trim(),
+        regimen:document.getElementById('p-regimen').value,
+        cfdi:   document.getElementById('p-cfdi').value,
+        email:  document.getElementById('p-email').value.trim(),
+        costco: document.getElementById('p-costco').value.trim(),
+    };
+    if (!p.rfc || !p.razon || !p.cp || !p.regimen || !p.cfdi || !p.email) {
+        toast('⚠️ Completa todos los campos obligatorios');
+        return;
+    }
+    localStorage.setItem('fp_profile', JSON.stringify(p));
+    document.getElementById('prf-name').textContent = p.razon;
+    document.getElementById('prf-rfc').textContent  = p.rfc;
+    document.getElementById('prf-ok').style.display = 'inline-flex';
+    toast('✅ Perfil guardado');
+    setTimeout(() => go('home'), 1100);
+}
+
+// ── Home ──────────────────────────────────────────────────────────────────
+function refreshHome() {
+    const p        = getProfile();
+    const facturas = getFacturas();
+    const ok       = profileOk(p);
+
+    document.getElementById('home-notice').style.display = ok ? 'none' : 'flex';
+    document.getElementById('home-title').textContent    = ok ? p.razon.split(' ')[0] : 'AC Factura';
+    document.getElementById('home-profile-sub').textContent = ok ? p.rfc : 'No configurado';
+    document.getElementById('home-hist-sub').textContent =
+        facturas.length ? facturas.length + ' factura' + (facturas.length !== 1 ? 's' : '') : 'Sin facturas';
+
+    const now    = new Date();
+    const delMes = facturas.filter(f => {
+        const d = new Date(f.fechaFactura);
+        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    });
+    document.getElementById('home-mes').textContent   = delMes.length;
+    document.getElementById('home-total').textContent = facturas.length;
+
+    const recentEl   = document.getElementById('home-recent');
+    const recentList = document.getElementById('home-recent-list');
+    if (facturas.length) {
+        recentEl.style.display = 'block';
+        const recent = [...facturas].reverse().slice(0,3);
+        recentList.innerHTML   = recent.map(f => invItemHTML(f, 'historial')).join('');
+    } else {
+        recentEl.style.display = 'none';
+    }
+}
+
+// ── Establecimiento ───────────────────────────────────────────────────────
+function initEstScreen() {
+    selectedEst = null;
+    ocrUsado    = false;
+    document.getElementById('btn-est-next').disabled = true;
+
+    // Limpia campos ticket
+    ['t-num','t-fecha','t-total','t-membresia','t-referencia'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+    // Resetea estado OCR
+    document.getElementById('ocr-notice').style.display       = 'none';
+    document.getElementById('ocr-warning').style.display      = 'none';
+    document.getElementById('ocr-processing-box').style.display = 'none';
+    document.getElementById('upload-area').style.display      = 'block';
+    const ua = document.getElementById('upload-area');
+    ua.querySelector('.upload-text').textContent = 'Tomar foto o subir imagen del ticket';
+    ua.querySelector('.upload-sub').textContent  = 'JPG, PNG · se leerá automáticamente';
+
+    // Renderiza grid
+    document.getElementById('est-grid').innerHTML = ESTABLECIMIENTOS.map(e => `
+        <div class="est-card" id="ec-${e.id}" onclick="selectEst('${e.id}')">
+            <div class="est-logo" style="background:${e.color}">${e.short}</div>
+            <div class="est-name">${e.name}</div>
+        </div>
+    `).join('');
+}
+
+function selectEst(id) {
+    selectedEst = ESTABLECIMIENTOS.find(e => e.id === id);
+    document.querySelectorAll('.est-card').forEach(c => c.classList.remove('selected'));
+    document.getElementById('ec-' + id).classList.add('selected');
+    document.getElementById('btn-est-next').disabled = false;
+}
+
+function estNext() {
+    if (!selectedEst) return;
+
+    // Muestra/oculta campos extra en pantalla ticket
+    document.getElementById('field-membresia').style.display  =
+        selectedEst.extras.includes('membresia')  ? 'block' : 'none';
+    document.getElementById('field-referencia').style.display =
+        selectedEst.extras.includes('referencia') ? 'block' : 'none';
+
+    // Precarga membresía de Costco del perfil si existe
+    if (selectedEst.extras.includes('membresia')) {
+        const p = getProfile();
+        if (p && p.costco) document.getElementById('t-membresia').value = p.costco;
+    }
+
+    document.getElementById('ticket-store-chip').textContent = selectedEst.name;
+    document.getElementById('t-fecha').value = hoy();
+    go('ticket');
+}
+
+// ── OCR REAL con Tesseract.js ─────────────────────────────────────────────
+let tesseractReady = false;
+let tesseractWorker = null;
+
+async function getTesseract() {
+    if (tesseractWorker) return tesseractWorker;
+    // Carga Tesseract desde CDN si no está disponible
+    if (typeof Tesseract === 'undefined') {
+        await new Promise((resolve, reject) => {
+            const s = document.createElement('script');
+            s.src = 'https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.4/tesseract.min.js';
+            s.onload = resolve; s.onerror = reject;
+            document.head.appendChild(s);
+        });
+    }
+    tesseractWorker = await Tesseract.createWorker('spa+eng', 1, {
+        logger: m => updateOcrProgress(m),
+    });
+    return tesseractWorker;
+}
+
+function updateOcrProgress(m) {
+    const bar  = document.getElementById('ocr-bar');
+    const pct  = document.getElementById('ocr-pct');
+    const txt  = document.getElementById('ocr-status-text');
+    if (!bar) return;
+    const progress = Math.round((m.progress || 0) * 100);
+    bar.style.width = progress + '%';
+    pct.textContent = progress + '%';
+    if (m.status === 'recognizing text') txt.textContent = 'Leyendo texto del ticket…';
+    else if (m.status === 'loading tesseract core') txt.textContent = 'Iniciando motor OCR…';
+    else if (m.status === 'initializing tesseract') txt.textContent = 'Preparando OCR…';
+    else if (m.status === 'loading language traineddata') txt.textContent = 'Cargando idioma…';
+    else if (m.status === 'initializing api') txt.textContent = 'Listo para leer…';
+}
+
+async function handleImageUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Muestra preview y caja de procesamiento
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+        const imgData = e.target.result;
+        document.getElementById('ocr-preview-img').src = imgData;
+        document.getElementById('upload-area').style.display    = 'none';
+        document.getElementById('ocr-processing-box').style.display = 'block';
+        document.getElementById('ocr-notice').style.display  = 'none';
+        document.getElementById('ocr-warning').style.display = 'none';
+
+        try {
+            const worker = await getTesseract();
+            const result = await worker.recognize(imgData);
+            const texto  = result.data.text;
+
+            // Muestra texto crudo (debug)
+            const rawEl = document.getElementById('ocr-raw-text');
+            rawEl.textContent = texto;
+
+            // Parsea el ticket
+            const datos = parsearTicket(texto);
+            aplicarDatosOCR(datos, texto);
+
+        } catch(err) {
+            console.error('OCR error:', err);
+            document.getElementById('ocr-status-text').textContent = 'Error al leer la imagen';
+            document.getElementById('ocr-warning').style.display   = 'flex';
+            document.getElementById('ocr-warning-text').textContent =
+                'No se pudo procesar la imagen. Intenta con mejor iluminación o captura los datos manualmente.';
+            document.getElementById('ocr-processing-box').style.display = 'none';
+            document.getElementById('upload-area').style.display = 'block';
+        }
+    };
+    reader.readAsDataURL(file);
+    // Resetea el input para permitir volver a subir la misma foto
+    event.target.value = '';
+}
+
+// ── Parser de tickets mexicanos ───────────────────────────────────────────
+function parsearTicket(texto) {
+    const lineas  = texto.split('\n').map(l => l.trim()).filter(l => l);
+    const textoUC = texto.toUpperCase();
+    const datos   = { num: null, fecha: null, total: null, detectados: [] };
+
+    // ── 1. TOTAL ─────────────────────────────────────────────────────────
+    // Busca líneas con TOTAL seguido de un monto
+    const patronesTotal = [
+        /TOTAL[^\d]*(\d{1,6}[.,]\d{2})/i,
+        /TOTAL[^\d]*\$\s*(\d{1,6}[.,]\d{2})/i,
+        /IMPORTE TOTAL[^\d]*(\d{1,6}[.,]\d{2})/i,
+        /\bTOTAL\b.*?(\d{1,6}[.,]\d{2})/i,
+    ];
+    for (const patron of patronesTotal) {
+        const m = texto.match(patron);
+        if (m) {
+            datos.total = m[1].replace(',', '.');
+            datos.detectados.push('total');
+            break;
+        }
+    }
+    // Si no encontró, intenta la cantidad más grande del ticket
+    if (!datos.total) {
+        const montos = [...texto.matchAll(/\d{1,5}[.,]\d{2}/g)]
+            .map(m => parseFloat(m[0].replace(',', '.')))
+            .filter(n => n > 1);
+        if (montos.length) {
+            datos.total = Math.max(...montos).toFixed(2);
+            datos.detectados.push('total-estimado');
+        }
+    }
+
+    // ── 2. FECHA ─────────────────────────────────────────────────────────
+    // Formatos comunes en tickets MX: DD/MM/YYYY, DD-MM-YYYY, YYYY-MM-DD
+    const patronesFecha = [
+        { re: /\b(\d{2})\/(\d{2})\/(\d{4})\b/, fn: m => `${m[3]}-${m[2]}-${m[1]}` },
+        { re: /\b(\d{2})-(\d{2})-(\d{4})\b/,   fn: m => `${m[3]}-${m[2]}-${m[1]}` },
+        { re: /\b(\d{4})-(\d{2})-(\d{2})\b/,   fn: m => `${m[1]}-${m[2]}-${m[3]}` },
+        { re: /\b(\d{2})\/(\d{2})\/(\d{2})\b/, fn: m => `20${m[3]}-${m[2]}-${m[1]}` },
+    ];
+    for (const {re, fn} of patronesFecha) {
+        const m = texto.match(re);
+        if (m) {
+            const fechaISO = fn(m);
+            // Valida que sea una fecha real
+            if (!isNaN(new Date(fechaISO))) {
+                datos.fecha = fechaISO;
+                datos.detectados.push('fecha');
+                break;
+            }
+        }
+    }
+
+    // ── 3. NÚMERO DE TICKET ───────────────────────────────────────────────
+    // Walmart: "NO. TICKET XXXX", "TICKET #XXXX", "TRANS#XXXX", "FOLIO XXXX"
+    const patronesTicket = [
+        /(?:NO\.?\s*)?TICKET\s*[#:]?\s*(\d{4,10})/i,
+        /TRANS(?:ACCION|ACCIÓN)?\s*[#:]?\s*(\d{4,10})/i,
+        /FOLIO\s*[#:]?\s*([\w\d-]{4,15})/i,
+        /AUTORIZA(?:CION|CIÓN)?\s*[#:]?\s*(\d{4,10})/i,
+        /REFERENCIA\s*[#:]?\s*(\d{4,10})/i,
+        /#\s*(\d{5,10})\b/,
+        /TC[:]?\s*(\d{4,10})/i,
+    ];
+    for (const re of patronesTicket) {
+        const m = texto.match(re);
+        if (m) {
+            datos.num = m[1].trim();
+            datos.detectados.push('numero');
+            break;
+        }
+    }
+
+    return datos;
+}
+
+function aplicarDatosOCR(datos, textoRaw) {
+    let detectados = 0;
+
+    if (datos.total) {
+        document.getElementById('t-total').value = datos.total;
+        detectados++;
+    }
+    if (datos.fecha) {
+        document.getElementById('t-fecha').value = datos.fecha;
+        detectados++;
+    }
+    if (datos.num) {
+        document.getElementById('t-num').value = datos.num;
+        detectados++;
+    }
+
+    // Oculta processing, muestra estado final
+    document.getElementById('ocr-processing-box').style.display = 'none';
+
+    const faltantes = [];
+    if (!datos.total)  faltantes.push('total');
+    if (!datos.fecha)  faltantes.push('fecha');
+    if (!datos.num)    faltantes.push('número de ticket');
+
+    // Muestra resumen de lo detectado
+    const resumen = [];
+    if (datos.total) resumen.push(`Total: $${datos.total}`);
+    if (datos.fecha) resumen.push(`Fecha: ${fmtFecha(datos.fecha)}`);
+    if (datos.num)   resumen.push(`Ticket: ${datos.num}`);
+
+    if (faltantes.length === 0) {
+        document.getElementById('ocr-notice').style.display = 'flex';
+        document.getElementById('ocr-notice-text').textContent =
+            `Detectado: ${resumen.join(' · ')}`;
+    } else {
+        document.getElementById('ocr-notice').style.display = resumen.length ? 'flex' : 'none';
+        if (resumen.length) {
+            document.getElementById('ocr-notice-text').textContent =
+                `Detectado: ${resumen.join(' · ')}`;
+        }
+        document.getElementById('ocr-warning').style.display = 'flex';
+        document.getElementById('ocr-warning-text').textContent =
+            `No se detectó: ${faltantes.join(', ')}. Completa esos campos manualmente.`;
+    }
+
+    // Muestra texto crudo con botón toggle
+    const rawEl = document.getElementById('ocr-raw-text');
+    rawEl.textContent = textoRaw;
+
+    // Muestra área de upload de nuevo (para volver a tomar foto si quieren)
+    document.getElementById('upload-area').style.display = 'block';
+    document.getElementById('upload-area').querySelector('.upload-text').textContent = 'Volver a tomar foto';
+    document.getElementById('upload-area').querySelector('.upload-sub').textContent  = 'Toca para cambiar la imagen';
+
+    ocrUsado = true;
+
+    if (detectados === 3) toast('✅ Ticket leído correctamente');
+    else if (detectados > 0) toast(`🤖 Detectados ${detectados}/3 campos`);
+    else toast('⚠️ No se detectaron datos — captura manualmente');
+}
+
+// ── OCR de ejemplo (fallback) ─────────────────────────────────────────────
+function simOCR() {
+    if (!selectedEst) return;
+    const ej = TICKETS_EJEMPLO[selectedEst.id];
+    if (!ej) return;
+    document.getElementById('t-num').value   = ej.num;
+    document.getElementById('t-total').value = ej.total;
+    if (!document.getElementById('t-fecha').value) {
+        document.getElementById('t-fecha').value = hoy();
+    }
+    document.getElementById('ocr-processing-box').style.display = 'none';
+    document.getElementById('ocr-notice').style.display = 'flex';
+    document.getElementById('ocr-notice-text').textContent = 'Ticket de ejemplo cargado — datos simulados.';
+    document.getElementById('ocr-warning').style.display  = 'none';
+    ocrUsado = true;
+    toast('🤖 Ticket de ejemplo cargado');
+}
+
+// ── Ticket → Revisión ─────────────────────────────────────────────────────
+function ticketNext() {
+    const num   = document.getElementById('t-num').value.trim();
+    const fecha = document.getElementById('t-fecha').value.trim();
+    const total = document.getElementById('t-total').value.trim();
+
+    if (!num || !fecha || !total) {
+        toast('⚠️ Completa los datos del ticket');
+        return;
+    }
+    const p = getProfile();
+    if (!profileOk(p)) {
+        toast('⚠️ Primero completa tu perfil fiscal');
+        setTimeout(() => go('profile'), 1000);
+        return;
+    }
+
+    document.getElementById('r-store').textContent  = selectedEst.name;
+    document.getElementById('r-num').textContent    = num;
+    document.getElementById('r-fecha').textContent  = fmtFecha(fecha);
+    document.getElementById('r-total').textContent  = '$' + total;
+    document.getElementById('r-rfc').textContent    = p.rfc;
+    document.getElementById('r-razon').textContent  = p.razon;
+    document.getElementById('r-cp').textContent     = p.cp;
+    document.getElementById('r-regimen').textContent= p.regimen;
+    document.getElementById('r-cfdi').textContent   = p.cfdi;
+    document.getElementById('r-email').textContent  = p.email;
+
+    go('revision');
+}
+
+// ── Procesamiento simulado ────────────────────────────────────────────────
+function startProcessing() {
+    go('procesando');
+    document.getElementById('proc-store').textContent = selectedEst.name;
+
+    const steps = ['ps1','ps2','ps3','ps4','ps5'];
+    steps.forEach(id => {
+        const el = document.getElementById(id);
+        el.className = 'proc-step';
+        el.querySelector('.pstep-dot').textContent = '';
+    });
+
+    steps.forEach((id, i) => {
+        setTimeout(() => {
+            if (i > 0) {
+                const prev = document.getElementById(steps[i-1]);
+                prev.className = 'proc-step step-done';
+                prev.querySelector('.pstep-dot').textContent = '✓';
+            }
+            document.getElementById(id).className = 'proc-step step-active';
+        }, i * 900);
+    });
+
+    setTimeout(() => {
+        document.getElementById('ps5').className = 'proc-step step-done';
+        document.getElementById('ps5').querySelector('.pstep-dot').textContent = '✓';
+        const factura = guardarFactura();
+        rellenarResultado(factura);
+        setTimeout(() => go('resultado'), 400);
+    }, 5 * 900 + 300);
+}
+
+// ── Guardar factura ───────────────────────────────────────────────────────
+function guardarFactura() {
+    const p = getProfile();
+    const f = {
+        id:             Date.now(),
+        folio:          generarFolio(),
+        establecimiento:selectedEst.id,
+        ticketNum:      document.getElementById('t-num').value.trim(),
+        fechaCompra:    document.getElementById('t-fecha').value.trim(),
+        fechaFactura:   hoy(),
+        total:          document.getElementById('t-total').value.trim(),
+        rfc:            p.rfc,
+        razon:          p.razon,
+        cfdi:           p.cfdi,
+        email:          p.email,
+    };
+    const lista = getFacturas();
+    lista.push(f);
+    localStorage.setItem('fp_facturas', JSON.stringify(lista));
+    return f;
+}
+
+function rellenarResultado(f) {
+    document.getElementById('res-folio').textContent = 'Folio: ' + f.folio;
+    document.getElementById('res-store').textContent = selectedEst.name;
+    document.getElementById('res-num').textContent   = f.ticketNum;
+    document.getElementById('res-fecha').textContent = fmtFecha(f.fechaCompra);
+    document.getElementById('res-total').textContent = '$' + f.total;
+    document.getElementById('res-email').textContent = f.email;
+}
+
+// ── Historial ─────────────────────────────────────────────────────────────
+function getFacturas() {
+    try { return JSON.parse(localStorage.getItem('fp_facturas') || '[]'); } catch { return []; }
+}
+
+let histFilter = 'all';
+
+function renderHistorial() {
+    // Construye chips de filtro
+    const todos = ['all', ...new Set(getFacturas().map(f => f.establecimiento))];
+    document.getElementById('filter-row').innerHTML = todos.map(id => {
+        const est  = ESTABLECIMIENTOS.find(e => e.id === id);
+        const name = id === 'all' ? 'Todas' : (est ? est.name : id);
+        return `<button class="filter-chip ${histFilter===id?'active':''}"
+                    onclick="setFilter('${id}',this)">${name}</button>`;
+    }).join('');
+
+    let facturas = getFacturas().reverse();
+    if (histFilter !== 'all') facturas = facturas.filter(f => f.establecimiento === histFilter);
+
+    const container = document.getElementById('hist-list');
+    if (!facturas.length) {
+        container.innerHTML = `<div class="empty">
+            <div class="empty-icon">🗂️</div>
+            <div class="empty-title">Sin facturas aún</div>
+            <div class="empty-sub">Tus facturas generadas aparecerán aquí</div>
+        </div>`;
+        return;
+    }
+    container.innerHTML = `<div class="card" style="padding:4px 14px">${facturas.map(f=>invItemHTML(f,'detalle')).join('')}</div>`;
+}
+
+function setFilter(id, btn) {
+    histFilter = id;
+    document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+    renderHistorial();
+}
+
+function invItemHTML(f, dest) {
+    const est = ESTABLECIMIENTOS.find(e => e.id === f.establecimiento);
+    return `
+    <div class="inv-item" onclick="openDetalle(${f.id})">
+        <div class="inv-logo" style="background:${est?est.color:'#666'}">${est?est.short:'?'}</div>
+        <div style="flex:1">
+            <div class="inv-store">${est?est.name:f.establecimiento}</div>
+            <div class="inv-date">${fmtFecha(f.fechaCompra)} · ${f.folio}</div>
+        </div>
+        <div class="inv-right">
+            <div class="inv-amount">$${f.total}</div>
+            <span class="badge badge-ok">✓</span>
+        </div>
+    </div>`;
+}
+
+function openDetalle(id) {
+    const f   = getFacturas().find(x => x.id === id);
+    if (!f) return;
+    const est = ESTABLECIMIENTOS.find(e => e.id === f.establecimiento);
+    const logo = document.getElementById('det-logo');
+    logo.style.background = est ? est.color : '#666';
+    logo.textContent       = est ? est.short : '?';
+
+    document.getElementById('det-store').textContent  = est ? est.name : f.establecimiento;
+    document.getElementById('det-fecha').textContent  = fmtFecha(f.fechaCompra);
+    document.getElementById('det-amount').textContent = '$' + f.total;
+    document.getElementById('det-folio').textContent  = f.folio;
+    document.getElementById('det-ticket').textContent = f.ticketNum;
+    document.getElementById('det-rfc').textContent    = f.rfc;
+    document.getElementById('det-razon').textContent  = f.razon;
+    document.getElementById('det-cfdi').textContent   = f.cfdi;
+
+    go('detalle');
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────
+function hoy() {
+    return new Date().toISOString().split('T')[0];
+}
+
+function fmtFecha(str) {
+    if (!str) return '';
+    const meses = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+    const [y,m,d] = str.split('-');
+    return `${parseInt(d)} ${meses[parseInt(m)-1]} ${y}`;
+}
+
+function generarFolio() {
+    const año  = new Date().getFullYear();
+    const rand = String(Math.floor(Math.random() * 90000) + 10000);
+    return `CFDI-${año}-${rand}`;
+}
+
+let _toastTimer;
+function toast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent    = msg;
+    t.style.display  = 'block';
+    clearTimeout(_toastTimer);
+    _toastTimer = setTimeout(() => { t.style.display = 'none'; }, 2600);
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+    refreshHome();
+});
+</script>
+</body>
+</html>
