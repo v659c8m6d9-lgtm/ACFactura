@@ -26,24 +26,45 @@
         return m ? m[1] : null;
     }
 
-    // Número largo y variable — no se asume una longitud exacta.
+    // Número largo y variable — no se asume una longitud exacta. Sin \b antes
+    // de "TC#": en el ticket real, TC# va en su propia línea justo después de
+    // "TDA#... TR#09283", y el OCR a veces pega esa línea sin salto real
+    // (p. ej. "...TR#09283TC#189707..."). \b no dispara entre un dígito y una
+    // letra le siguen siendo ambos "caracteres de palabra" en regex — así que
+    // exigir \b ahí impedía detectar el TC# cuando quedaba pegado al TR#.
     function extractTicket(texto) {
-        const m = texto.match(/\bTC#(\d{8,25})\b/);
+        const m = texto.match(/TC#(\d{8,25})\b/);
         return m ? m[1] : null;
     }
 
-    // DD/MM/YY o DD/MM/YYYY, opcionalmente seguido de hora HH:MM.
+    // DD/MM/YY o DD/MM/YYYY junto con hora HH:MM. Se busca PRIMERO el patrón
+    // fecha+hora (más específico y menos propenso a falsos positivos) y solo
+    // si no aparece se cae a una fecha sola. Esto evita que un número no
+    // relacionado que luzca como fecha (p. ej. "TS#080926185753", que no
+    // trae hora pegada) le gane a la fecha real de compra, que en el ticket
+    // siempre aparece acompañada de la hora ("08/09/26 19:01").
     function extractDateTime(texto) {
-        const m = texto.match(/\b(\d{2})\/(\d{2})\/(\d{2}|\d{4})\b(?:\D{0,3}(\d{1,2}):(\d{2}))?/);
-        if (!m) return { date: null, time: null };
+        const conHora = texto.match(/\b(\d{2})\/(\d{2})\/(\d{2}|\d{4})\D{0,3}(\d{1,2}):(\d{2})\b/);
+        if (conHora) {
+            const [, dd, mm, yy, hh, min] = conHora;
+            const year = yy.length === 2 ? '20' + yy : yy;
+            const iso = `${year}-${mm}-${dd}`;
+            if (!isNaN(new Date(iso).getTime())) {
+                return { date: iso, time: `${hh.padStart(2, '0')}:${min}` };
+            }
+        }
 
-        const [, dd, mm, yy, hh, min] = m;
-        const year = yy.length === 2 ? '20' + yy : yy;
-        const iso = `${year}-${mm}-${dd}`;
-        if (isNaN(new Date(iso).getTime())) return { date: null, time: null };
+        const soloFecha = texto.match(/\b(\d{2})\/(\d{2})\/(\d{2}|\d{4})\b/);
+        if (soloFecha) {
+            const [, dd, mm, yy] = soloFecha;
+            const year = yy.length === 2 ? '20' + yy : yy;
+            const iso = `${year}-${mm}-${dd}`;
+            if (!isNaN(new Date(iso).getTime())) {
+                return { date: iso, time: null };
+            }
+        }
 
-        const time = hh !== undefined ? `${hh.padStart(2, '0')}:${min}` : null;
-        return { date: iso, time };
+        return { date: null, time: null };
     }
 
     // Busca el importe en la(s) línea(s) con la etiqueta TOTAL, nunca SUBTOTAL,
