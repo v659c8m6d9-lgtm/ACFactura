@@ -718,6 +718,12 @@
                 <input id="t-referencia" type="text" class="form-input" placeholder="Ej. 987654321">
             </div>
 
+            <!-- Campo extra: Walmart / Bodega Aurrera -->
+            <div id="field-transaccion" style="display:none" class="form-group">
+                <label class="form-label">N° de Transacción (TR#) *</label>
+                <input id="t-transaccion" type="text" class="form-input" placeholder="Ej. 09283">
+            </div>
+
             <div class="form-group">
                 <label class="form-label">Método de Pago</label>
                 <select id="t-metodo" class="form-select">
@@ -776,6 +782,10 @@
             <div class="data-row" id="r-row-referencia" style="display:none">
                 <span class="data-label">N° Operación/Guía</span>
                 <span class="data-value" id="r-referencia"></span>
+            </div>
+            <div class="data-row" id="r-row-transaccion" style="display:none">
+                <span class="data-label">Transacción (TR#)</span>
+                <span class="data-value" id="r-transaccion"></span>
             </div>
         </div>
 
@@ -976,6 +986,12 @@
 <div id="toast"></div>
 
 <!-- ═══════════════════════════════════════════ -->
+<!--  MÓDULOS: común (OCR) + establecimientos    -->
+<!-- ═══════════════════════════════════════════ -->
+<script src="js/ocr-preprocess.js"></script>
+<script src="js/establishments/walmart.js"></script>
+
+<!-- ═══════════════════════════════════════════ -->
 <!--  JAVASCRIPT                                 -->
 <!-- ═══════════════════════════════════════════ -->
 <script>
@@ -987,7 +1003,7 @@ document.querySelectorAll('.js-logo').forEach(img => img.src = LOGO_BASE64);
 
 // ── Catálogo de establecimientos ──────────────────────────────────────────
 const ESTABLECIMIENTOS = [
-    { id:'walmart',      name:'Walmart',        short:'WM', color:'#0071CE', extras:[] },
+    { id:'walmart',      name:'Walmart / Bodega Aurrera', short:'WM', color:'#0071CE', extras:['transaccion'] },
     { id:'home-depot',   name:'Home Depot',     short:'HD', color:'#F96302', extras:[] },
     { id:'office-depot', name:'Office Depot',   short:'OD', color:'#CC0000', extras:[] },
     { id:'liverpool',    name:'Liverpool',      short:'LV', color:'#B8000E', extras:[] },
@@ -1099,7 +1115,7 @@ function initEstScreen() {
     document.getElementById('btn-est-next').disabled = true;
 
     // Limpia campos ticket
-    ['t-num','t-fecha','t-total','t-membresia','t-referencia'].forEach(id => {
+    ['t-num','t-fecha','t-total','t-membresia','t-referencia','t-transaccion'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.value = '';
     });
@@ -1136,6 +1152,8 @@ function estNext() {
         selectedEst.extras.includes('membresia')  ? 'block' : 'none';
     document.getElementById('field-referencia').style.display =
         selectedEst.extras.includes('referencia') ? 'block' : 'none';
+    document.getElementById('field-transaccion').style.display =
+        selectedEst.extras.includes('transaccion') ? 'block' : 'none';
 
     // Precarga membresía de Costco del perfil si existe
     if (selectedEst.extras.includes('membresia')) {
@@ -1166,6 +1184,9 @@ async function getTesseract() {
     tesseractWorker = await Tesseract.createWorker('spa+eng', 1, {
         logger: m => updateOcrProgress(m),
     });
+    // PSM 6: asume un solo bloque uniforme de texto — mejor ajuste para
+    // tickets/recibos de una sola columna que el modo automático por defecto.
+    await tesseractWorker.setParameters({ tessedit_pageseg_mode: '6' });
     return tesseractWorker;
 }
 
@@ -1200,16 +1221,23 @@ async function handleImageUpload(event) {
 
         try {
             const worker = await getTesseract();
-            const result = await worker.recognize(imgData);
+            const processedImg = await OCRPreprocess.prepare(imgData);
+            const result = await worker.recognize(processedImg);
             const texto  = result.data.text;
 
             // Muestra texto crudo (debug)
             const rawEl = document.getElementById('ocr-raw-text');
             rawEl.textContent = texto;
 
-            // Parsea el ticket
-            const datos = parsearTicket(texto);
-            aplicarDatosOCR(datos, texto);
+            // Parsea el ticket — Walmart/Bodega Aurrera usa su parser específico
+            const esWalmart = selectedEst && selectedEst.id === 'walmart';
+            if (esWalmart) {
+                const datos = WalmartParser.parseTicket(texto);
+                aplicarDatosOCRWalmart(datos, texto);
+            } else {
+                const datos = parsearTicket(texto);
+                aplicarDatosOCR(datos, texto);
+            }
 
         } catch(err) {
             console.error('OCR error:', err);
@@ -1364,13 +1392,63 @@ function aplicarDatosOCR(datos, textoRaw) {
     else toast('⚠️ No se detectaron datos — captura manualmente');
 }
 
+// ── Aplicar OCR: Walmart / Bodega Aurrera (TR# + TC#) ───────────────────────
+function aplicarDatosOCRWalmart(datos, textoRaw) {
+    let detectados = 0;
+    if (datos.total)        { document.getElementById('t-total').value = datos.total; detectados++; }
+    if (datos.purchaseDate) { document.getElementById('t-fecha').value = datos.purchaseDate; detectados++; }
+    if (datos.ticket)       { document.getElementById('t-num').value = datos.ticket; detectados++; }
+    if (datos.transaction)  { document.getElementById('t-transaccion').value = datos.transaction; detectados++; }
+
+    document.getElementById('ocr-processing-box').style.display = 'none';
+
+    const faltantes = [];
+    if (!datos.total)        faltantes.push('total');
+    if (!datos.purchaseDate) faltantes.push('fecha');
+    if (!datos.ticket)       faltantes.push('ticket (TC#)');
+    if (!datos.transaction)  faltantes.push('transacción (TR#)');
+
+    const resumen = [];
+    if (datos.total)        resumen.push(`Total: $${datos.total}`);
+    if (datos.purchaseDate) resumen.push(`Fecha: ${fmtFecha(datos.purchaseDate)}`);
+    if (datos.ticket)       resumen.push(`TC#${datos.ticket}`);
+    if (datos.transaction)  resumen.push(`TR#${datos.transaction}`);
+
+    if (faltantes.length === 0) {
+        document.getElementById('ocr-notice').style.display = 'flex';
+        document.getElementById('ocr-notice-text').textContent = `Detectado: ${resumen.join(' · ')}`;
+    } else {
+        document.getElementById('ocr-notice').style.display = resumen.length ? 'flex' : 'none';
+        if (resumen.length) {
+            document.getElementById('ocr-notice-text').textContent = `Detectado: ${resumen.join(' · ')}`;
+        }
+        document.getElementById('ocr-warning').style.display = 'flex';
+        document.getElementById('ocr-warning-text').textContent =
+            `No se detectó: ${faltantes.join(', ')}. Completa esos campos manualmente.`;
+    }
+
+    const rawEl = document.getElementById('ocr-raw-text');
+    rawEl.textContent = textoRaw;
+
+    document.getElementById('upload-area').style.display = 'block';
+    document.getElementById('upload-area').querySelector('.upload-text').textContent = 'Volver a tomar foto';
+    document.getElementById('upload-area').querySelector('.upload-sub').textContent  = 'Toca para cambiar la imagen';
+
+    ocrUsado = true;
+
+    if (detectados === 4) toast('✅ Ticket leído correctamente');
+    else if (detectados > 0) toast(`🤖 Detectados ${detectados}/4 campos`);
+    else toast('⚠️ No se detectaron datos — captura manualmente');
+}
+
 // ── Ticket → Revisión ─────────────────────────────────────────────────────
 function ticketNext() {
     const num        = document.getElementById('t-num').value.trim();
     const fecha      = document.getElementById('t-fecha').value.trim();
     const total      = document.getElementById('t-total').value.trim();
-    const membresia  = document.getElementById('t-membresia').value.trim();
-    const referencia = document.getElementById('t-referencia').value.trim();
+    const membresia   = document.getElementById('t-membresia').value.trim();
+    const referencia  = document.getElementById('t-referencia').value.trim();
+    const transaccion = document.getElementById('t-transaccion').value.trim();
 
     if (!num || !fecha || !total) {
         toast('⚠️ Completa los datos del ticket');
@@ -1384,6 +1462,17 @@ function ticketNext() {
         toast('⚠️ Ingresa el número de operación/guía');
         return;
     }
+    if (selectedEst.extras.includes('transaccion') && !transaccion) {
+        toast('⚠️ Ingresa el número de transacción (TR#)');
+        return;
+    }
+    if (selectedEst.id === 'walmart') {
+        const check = WalmartParser.validate({ ticket: num, transaction: transaccion, purchaseDate: fecha, total });
+        if (!check.valid) {
+            toast('⚠️ ' + Object.values(check.errors)[0]);
+            return;
+        }
+    }
     const p = getProfile();
     if (!profileOk(p)) {
         toast('⚠️ Primero completa tu perfil fiscal');
@@ -1392,13 +1481,15 @@ function ticketNext() {
     }
 
     document.getElementById('r-store').textContent  = selectedEst.name;
-    document.getElementById('r-num').textContent    = num;
+    document.getElementById('r-num').textContent    = selectedEst.id === 'walmart' ? ('TC#' + num) : num;
     document.getElementById('r-fecha').textContent  = fmtFecha(fecha);
     document.getElementById('r-total').textContent  = '$' + total;
     document.getElementById('r-row-membresia').style.display  = selectedEst.extras.includes('membresia')  ? 'flex' : 'none';
     document.getElementById('r-membresia').textContent  = membresia;
     document.getElementById('r-row-referencia').style.display = selectedEst.extras.includes('referencia') ? 'flex' : 'none';
     document.getElementById('r-referencia').textContent = referencia;
+    document.getElementById('r-row-transaccion').style.display = selectedEst.extras.includes('transaccion') ? 'flex' : 'none';
+    document.getElementById('r-transaccion').textContent = transaccion;
     document.getElementById('r-rfc').textContent    = p.rfc;
     document.getElementById('r-razon').textContent  = p.razon;
     document.getElementById('r-cp').textContent     = p.cp;
@@ -1408,6 +1499,38 @@ function ticketNext() {
 
     go('revision');
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+// INTEGRACIÓN REAL WALMART — PENDIENTE (investigado 2026-09-10)
+//
+// Portal: https://facturacion-clientes.walmart.com/ticket
+// El formulario real "Facturar/Refacturar" pide: membershipOrRFC (texto),
+// postalCode (5 dígitos, opcional), ticketNumber (dígitos, maxlength 25) y
+// transactionNumber (dígitos, maxlength 5) — coincide 1:1 con TC#/TR# que
+// ya extrae WalmartParser (js/establishments/walmart.js).
+//
+// Backend: SPA en React + Azure Functions en el MISMO origen (/api/*).
+// Endpoints identificados en el bundle: ObtenerInfoConjuntoTcInfo,
+// ObtenerInfoConjunto, ObtenerFactura, ValidatePaymentMethod, VerificaTag
+// (probable verificación anti-bot), GetCatalogoUsoCfdi,
+// ObtenerCatRegimenFiscal. El estado del flujo se guarda en sessionStorage.
+//
+// BLOQUEO CONFIRMADO: un fetch() cross-origin real desde nuestro dominio
+// (v659c8m6d9-lgtm.github.io) hacia /api/GetCatalogoUsoCfdi devolvió
+// "Failed to fetch" — el backend de Walmart no acepta peticiones desde
+// otros orígenes (CORS). Un frontend puro en GitHub Pages NO puede
+// completar la facturación real contra este portal.
+//
+// MÍNIMO CAMBIO ARQUITECTÓNICO NECESARIO para pasar de "datos validados"
+// a "factura generada de verdad":
+//   1. Backend propio (proxy) que llame al portal de Walmart — resuelve
+//      CORS, pero probablemente no basta por sí solo.
+//   2. Muy probablemente automatización de navegador real (ej. Playwright
+//      headless) que reproduzca la sesión del portal, dado el paso
+//      "VerificaTag" que sugiere protección anti-bot.
+//   3. Esa pieza de backend/automatización queda pendiente — no se
+//      implementa en esta iteración.
+// ─────────────────────────────────────────────────────────────────────────
 
 // ── Procesamiento simulado ────────────────────────────────────────────────
 function startProcessing() {
@@ -1454,6 +1577,7 @@ function guardarFactura() {
         total:          document.getElementById('t-total').value.trim(),
         membresia:      selectedEst.extras.includes('membresia')  ? document.getElementById('t-membresia').value.trim()  : '',
         referencia:     selectedEst.extras.includes('referencia') ? document.getElementById('t-referencia').value.trim() : '',
+        transaccion:    selectedEst.extras.includes('transaccion') ? document.getElementById('t-transaccion').value.trim() : '',
         rfc:            p.rfc,
         razon:          p.razon,
         cfdi:           p.cfdi,
