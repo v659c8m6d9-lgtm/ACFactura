@@ -332,6 +332,25 @@
         .data-value { font-size: 12px; font-weight: 500; color: var(--gray-900); text-align: right; }
         .data-value.big { font-size: 16px; font-weight: 700; color: var(--primary); }
 
+        /* ══════════════ COPY ROWS (flujo asistido) ══════════════ */
+        .copy-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 10px 0; border-bottom: 1px solid var(--gray-100); gap: 10px;
+        }
+        .copy-row:last-child { border-bottom: none; }
+        .copy-row-text { flex: 1; min-width: 0; }
+        .copy-row-label { font-size: 11px; color: var(--gray-500); }
+        .copy-row-value {
+            font-size: 14px; font-weight: 600; color: var(--gray-900);
+            word-break: break-all; margin-top: 1px;
+        }
+        .copy-btn {
+            flex-shrink: 0; border: none; background: var(--primary-light);
+            color: var(--primary); font-size: 12px; font-weight: 600;
+            padding: 7px 12px; border-radius: 20px; cursor: pointer;
+        }
+        .copy-btn:active { background: var(--primary); color: #fff; }
+
         /* ══════════════ PROCESSING ══════════════ */
         .proc-wrap {
             display: flex; flex-direction: column;
@@ -817,8 +836,117 @@
             </div>
         </div>
 
-        <button class="btn btn-primary" onclick="startProcessing()">✓ Generar Factura</button>
+        <button class="btn btn-primary" id="btn-generar-factura" onclick="onGenerarFacturaClick()">✓ Generar Factura</button>
         <button class="btn btn-secondary" onclick="go('ticket')">Editar datos del ticket</button>
+        <div style="height:16px"></div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!--  SCREEN: WALMART — FLUJO ASISTIDO            -->
+<!-- ═══════════════════════════════════════════ -->
+<div id="s-walmart-asistido" class="screen">
+    <div class="header">
+        <button class="btn-back" onclick="go('revision')">←</button>
+        <div class="header-title">Completa en Walmart</div>
+        <img class="header-logo js-logo" alt="AC Contadores" src="">
+    </div>
+    <div class="step-bar">
+        <div class="step-dot done">✓</div>
+        <div class="step-line done"></div>
+        <div class="step-dot done">✓</div>
+        <div class="step-line done"></div>
+        <div class="step-dot done">✓</div>
+        <div class="step-line done"></div>
+        <div class="step-dot current">4</div>
+    </div>
+
+    <div class="content">
+        <div class="ocr-notice" style="align-items:flex-start">
+            <span>ℹ️</span>
+            <span>AC Factura todavía no genera esta factura de forma automática. Copia estos datos y complétalos en el portal oficial de Walmart.</span>
+        </div>
+
+        <div class="card">
+            <div class="data-section-label">🏪 Datos del Ticket</div>
+            <div class="copy-row">
+                <div class="copy-row-text">
+                    <div class="copy-row-label">Ticket / Folio (TC#)</div>
+                    <div class="copy-row-value" id="wa-ticket"></div>
+                </div>
+                <button class="copy-btn" onclick="copiarValor('wa-ticket')">Copiar</button>
+            </div>
+            <div class="copy-row">
+                <div class="copy-row-text">
+                    <div class="copy-row-label">Transacción (TR#)</div>
+                    <div class="copy-row-value" id="wa-transaccion"></div>
+                </div>
+                <button class="copy-btn" onclick="copiarValor('wa-transaccion')">Copiar</button>
+            </div>
+            <div class="copy-row">
+                <div class="copy-row-text">
+                    <div class="copy-row-label">Fecha de compra</div>
+                    <div class="copy-row-value" id="wa-fecha"></div>
+                </div>
+                <button class="copy-btn" onclick="copiarValor('wa-fecha')">Copiar</button>
+            </div>
+            <div class="copy-row">
+                <div class="copy-row-text">
+                    <div class="copy-row-label">Total</div>
+                    <div class="copy-row-value" id="wa-total"></div>
+                </div>
+                <button class="copy-btn" onclick="copiarValor('wa-total')">Copiar</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="data-section-label">👤 Datos Fiscales</div>
+            <div class="copy-row">
+                <div class="copy-row-text">
+                    <div class="copy-row-label">RFC</div>
+                    <div class="copy-row-value" id="wa-rfc"></div>
+                </div>
+                <button class="copy-btn" onclick="copiarValor('wa-rfc')">Copiar</button>
+            </div>
+            <div class="copy-row">
+                <div class="copy-row-text">
+                    <div class="copy-row-label">Razón Social</div>
+                    <div class="copy-row-value" id="wa-razon"></div>
+                </div>
+                <button class="copy-btn" onclick="copiarValor('wa-razon')">Copiar</button>
+            </div>
+            <div class="copy-row">
+                <div class="copy-row-text">
+                    <div class="copy-row-label">Código Postal</div>
+                    <div class="copy-row-value" id="wa-cp"></div>
+                </div>
+                <button class="copy-btn" onclick="copiarValor('wa-cp')">Copiar</button>
+            </div>
+            <div class="copy-row">
+                <div class="copy-row-text">
+                    <div class="copy-row-label">Régimen Fiscal</div>
+                    <div class="copy-row-value" id="wa-regimen"></div>
+                </div>
+                <button class="copy-btn" onclick="copiarValor('wa-regimen')">Copiar</button>
+            </div>
+            <div class="copy-row">
+                <div class="copy-row-text">
+                    <div class="copy-row-label">Uso CFDI</div>
+                    <div class="copy-row-value" id="wa-cfdi"></div>
+                </div>
+                <button class="copy-btn" onclick="copiarValor('wa-cfdi')">Copiar</button>
+            </div>
+            <div class="copy-row">
+                <div class="copy-row-text">
+                    <div class="copy-row-label">Correo</div>
+                    <div class="copy-row-value" id="wa-email"></div>
+                </div>
+                <button class="copy-btn" onclick="copiarValor('wa-email')">Copiar</button>
+            </div>
+        </div>
+
+        <button class="btn btn-primary" onclick="abrirPortalWalmart()">Continuar en Walmart ↗</button>
+        <button class="btn btn-secondary" onclick="go('home')">Ir al Inicio</button>
         <div style="height:16px"></div>
     </div>
 </div>
@@ -1496,41 +1624,97 @@ function ticketNext() {
     document.getElementById('r-regimen').textContent= p.regimen;
     document.getElementById('r-cfdi').textContent   = p.cfdi;
     document.getElementById('r-email').textContent  = p.email;
+    document.getElementById('btn-generar-factura').textContent =
+        selectedEst.id === 'walmart' ? 'Continuar con mis datos →' : '✓ Generar Factura';
 
     go('revision');
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// INTEGRACIÓN REAL WALMART — PENDIENTE (investigado 2026-09-10)
+// INTEGRACIÓN REAL WALMART — PENDIENTE
+// Investigación completa: docs/walmart-portal-investigation.md
 //
-// Portal: https://facturacion-clientes.walmart.com/ticket
-// El formulario real "Facturar/Refacturar" pide: membershipOrRFC (texto),
-// postalCode (5 dígitos, opcional), ticketNumber (dígitos, maxlength 25) y
-// transactionNumber (dígitos, maxlength 5) — coincide 1:1 con TC#/TR# que
-// ya extrae WalmartParser (js/establishments/walmart.js).
+// Estado actual (esta iteración): flujo ASISTIDO, no automático. AC Factura
+// prepara y valida los datos, pero es el usuario quien los captura a mano
+// en https://facturacion-clientes.walmart.com/ticket. Ver
+// mostrarAsistidoWalmart() más abajo.
 //
-// Backend: SPA en React + Azure Functions en el MISMO origen (/api/*).
-// Endpoints identificados en el bundle: ObtenerInfoConjuntoTcInfo,
-// ObtenerInfoConjunto, ObtenerFactura, ValidatePaymentMethod, VerificaTag
-// (probable verificación anti-bot), GetCatalogoUsoCfdi,
-// ObtenerCatRegimenFiscal. El estado del flujo se guarda en sessionStorage.
-//
-// BLOQUEO CONFIRMADO: un fetch() cross-origin real desde nuestro dominio
-// (v659c8m6d9-lgtm.github.io) hacia /api/GetCatalogoUsoCfdi devolvió
-// "Failed to fetch" — el backend de Walmart no acepta peticiones desde
-// otros orígenes (CORS). Un frontend puro en GitHub Pages NO puede
-// completar la facturación real contra este portal.
-//
-// MÍNIMO CAMBIO ARQUITECTÓNICO NECESARIO para pasar de "datos validados"
-// a "factura generada de verdad":
-//   1. Backend propio (proxy) que llame al portal de Walmart — resuelve
-//      CORS, pero probablemente no basta por sí solo.
-//   2. Muy probablemente automatización de navegador real (ej. Playwright
-//      headless) que reproduzca la sesión del portal, dado el paso
-//      "VerificaTag" que sugiere protección anti-bot.
-//   3. Esa pieza de backend/automatización queda pendiente — no se
-//      implementa en esta iteración.
+// Por qué no es automático todavía:
+//   - CORS: confirmado que el backend de Walmart (Azure Functions en
+//     /api/*, mismo origen que el SPA) rechaza peticiones cross-origin.
+//     Un frontend puro en GitHub Pages no puede llamarlo directo.
+//   - Prellenado por URL: investigado y descartado — el bundle del portal
+//     no lee query params ni location.search para inicializar el formulario
+//     (confirmado leyendo el código fuente Y probando con parámetros reales
+//     en la URL: el formulario carga siempre vacío). No hay deeplink posible.
+//   - VerificaTag NO es anti-bot (es una verificación de venta de
+//     motocicletas Italika) y no se encontró CAPTCHA en el bundle — por eso
+//     sigue siendo una opción viable a futuro un backend propio que
+//     replique la secuencia de llamadas ya documentada, o automatización
+//     de navegador real, para pasar de "asistido" a "automático". Ninguna
+//     de las dos requiere sortear un CAPTCHA.
 // ─────────────────────────────────────────────────────────────────────────
+
+// ── Flujo asistido Walmart (copiar datos → completar en el portal real) ────
+function onGenerarFacturaClick() {
+    if (selectedEst && selectedEst.id === 'walmart') {
+        mostrarAsistidoWalmart();
+    } else {
+        startProcessing();
+    }
+}
+
+function mostrarAsistidoWalmart() {
+    const p = getProfile();
+    const num        = document.getElementById('t-num').value.trim();
+    const transaccion= document.getElementById('t-transaccion').value.trim();
+    const fecha      = document.getElementById('t-fecha').value.trim();
+    const total      = document.getElementById('t-total').value.trim();
+
+    const setRow = (id, val) => { document.getElementById(id).textContent = val || '—'; };
+    setRow('wa-ticket',      num);
+    setRow('wa-transaccion', transaccion);
+    setRow('wa-fecha',       fmtFecha(fecha));
+    setRow('wa-total',       '$' + total);
+    setRow('wa-rfc',         p.rfc);
+    setRow('wa-razon',       p.razon);
+    setRow('wa-cp',          p.cp);
+    setRow('wa-regimen',     p.regimen);
+    setRow('wa-cfdi',        p.cfdi);
+    setRow('wa-email',       p.email);
+
+    go('walmart-asistido');
+}
+
+function copiarValor(id) {
+    const val = document.getElementById(id).textContent;
+    if (!val || val === '—') return;
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(val).then(
+            () => toast('📋 Copiado'),
+            () => toast('⚠️ No se pudo copiar')
+        );
+    } else {
+        const ta = document.createElement('textarea');
+        ta.value = val;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        try {
+            document.execCommand('copy');
+            toast('📋 Copiado');
+        } catch (err) {
+            toast('⚠️ No se pudo copiar');
+        }
+        document.body.removeChild(ta);
+    }
+}
+
+function abrirPortalWalmart() {
+    window.open('https://facturacion-clientes.walmart.com/ticket', '_blank', 'noopener');
+}
 
 // ── Procesamiento simulado ────────────────────────────────────────────────
 function startProcessing() {
